@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>BookRaffle 📚</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Rubik', sans-serif;
+      background: linear-gradient(135deg, #ece9e6, #ffffff);
+      text-align: center;
+      padding: 40px;
+      color: #333;
+      position: relative;
+      min-height: 100vh;
+      margin: 0;
+      padding-bottom: 70px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 90%;
+      max-width: 600px;
+      height: 100px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #aaa;
+      font-size: 1em;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1.1em;
+      border: none;
+      background: #4f46e5;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #3730a3;
+    }
+
+    #bookName {
+      font-size: 2em;
+      margin-top: 30px;
+      min-height: 2.4em;
+    }
+
+    #bookImage {
+      margin-top: 20px;
+      max-width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      min-height: 400px;
+      object-fit: contain;
+    }
+
+    #desc {
+      margin: 20px auto;
+      max-width: 700px;
+      padding: 20px;
+      background: #f4f4f4;
+      border-radius: 10px;
+      text-align: justify;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      white-space: pre-line;
+      min-height: 120px;
+      transition: opacity 0.3s;
+    }
+
+    #genres {
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 30px;
+    }
+
+    .genre {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: bold;
+      color: white;
+      text-transform: capitalize;
+      user-select: none;
+    }
+
+    /* Cores para tags comuns */
+    .romance { background: #ec4899; font-family: cursive; }
+    .terror, .horror { background: #111827; font-family: "Courier New"; }
+    .fantasia { background: #8b5cf6; }
+    .ação, .action { background: #f97316; }
+    .drama { background: #eab308; }
+    .ficção, .fiction { background: #22c55e; }
+    .mistério { background: #0ea5e9; }
+    .crítica { background: #d97706; }
+    .política { background: #6b7280; }
+    .histórico { background: #e17055; }
+
+    .default {
+      background: #6b7280;
+      font-family: Arial, sans-serif;
+    }
+
+    #copyBtn {
+      margin-top: 10px;
+      background: #10b981;
+    }
+
+    #copyBtn:hover {
+      background: #047857;
+    }
+
+    /* Rodapé assinatura */
+    #assinatura {
+      position: fixed;
+      bottom: 10px;
+      right: 15px;
+      font-size: 0.9em;
+      color: #666;
+      font-style: italic;
+      user-select: none;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+      cursor: default;
+      z-index: 999;
+    }
+
+    #assinatura:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>BookRaffle 📚</h1>
+  <p>Digite o nome dos livros (um por linha)</p>
+  <textarea id="bookList" placeholder="Ex:
+A Menina que Roubava Livros
+Percy Jackson
+Dom Casmurro"></textarea><br />
+
+  <button id="btnSortear">Sortear Livro</button>
+
+  <h2 id="bookName"></h2>
+  <div id="genres"></div>
+  <img id="bookImage" src="" alt="Capa do livro" />
+  <div id="desc">Descrição...</div>
+  <button id="copyBtn" onclick="copiarDescricao()" style="display:none;">📋 Copiar Descrição</button>
+
+  <div id="assinatura">Feito por Miguel Ferreira Corrêa</div>
+
+  <!-- Sons -->
+  <audio id="shakeSound" src="https://cdn.jsdelivr.net/gh/freeCodeCamp/cdn/audio/beatbox.mp3" preload="auto"></audio>
+  <audio id="dingSound" src="https://actions.google.com/sounds/v1/cartoon/clang.ogg" preload="auto"></audio>
+
+  <script>
+    const tradutorTags = {
+      "fiction": "Ficção",
+      "romance": "Romance",
+      "fantasy": "Fantasia",
+      "mystery": "Mistério",
+      "thriller": "Suspense",
+      "horror": "Terror",
+      "history": "Histórico",
+      "politics": "Política",
+      "criticism": "Crítica",
+      "drama": "Drama",
+      "action": "Ação",
+    };
+
+    function limpaTag(tag) {
+      return tag.trim().toLowerCase().replace(/[^\wáàâãéèêíïóôõöúçñ]/g, '');
+    }
+
+    function limparDescricao(desc) {
+      if (!desc) return "";
+      let textoLimpo = desc.replace(/<[^>]*>/g, "");
+      textoLimpo = textoLimpo
+        .split("\n")
+        .filter(linha => !linha.match(/[A-Z0-9]{10,}/))
+        .join("\n")
+        .trim();
+      textoLimpo = textoLimpo.replace(/(Sorteador de livros.*|E\.D\d+.*|0ustar.*)$/gi, "").trim();
+      return textoLimpo;
+    }
+
+    async function traduzirTexto(texto) {
+      try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=${encodeURIComponent(texto)}`);
+        const data = await res.json();
+        return data[0].map(part => part[0]).join('');
+      } catch {
+        return texto;
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function sortearLivro() {
+      const input = document.getElementById("bookList").value.trim();
+      const livros = input.split("\n").map(l => l.trim()).filter(l => l);
+      if (livros.length === 0) {
+        alert("Digite pelo menos um nome de livro!");
+        return;
+      }
+
+      const btn = document.getElementById("btnSortear");
+      btn.disabled = true;
+      btn.innerText = "Sortando...";
+
+      const shakeSound = document.getElementById("shakeSound");
+      const dingSound = document.getElementById("dingSound");
+
+      // Tocar som e parar depois de 2 segundos
+      shakeSound.pause();
+      shakeSound.currentTime = 0;
+      shakeSound.play();
+      setTimeout(() => {
+        shakeSound.pause();
+      }, 2000);
+
+      // Animação sorteando por 3s, mudando livro a cada 100ms
+      const duracaoAnimacao = 3000;
+      const intervalos = 100;
+      const passos = duracaoAnimacao / intervalos;
+
+      for (let i = 0; i < passos; i++) {
+        const livroAtual = livros[Math.floor(Math.random() * livros.length)];
+        document.getElementById("bookName").innerText = livroAtual;
+        document.getElementById("bookImage").src = "";
+        document.getElementById("desc").innerText = "";
+        document.getElementById("genres").innerHTML = "";
+        document.getElementById("copyBtn").style.display = "none";
+        await sleep(intervalos);
+      }
+
+      // Pega o livro final
+      const sorteado = document.getElementById("bookName").innerText;
+
+      try {
+        const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(sorteado)}&maxResults=1`);
+        const data = await res.json();
+
+        if (!data.items || data.items.length === 0) {
+          document.getElementById("desc").innerText = "Nenhum resultado encontrado.";
+          btn.disabled = false;
+          btn.innerText = "Sortear Livro";
+          return;
+        }
+
+        const livro = data.items[0].volumeInfo;
+
+        const img = livro.imageLinks?.extraLarge || livro.imageLinks?.large || livro.imageLinks?.thumbnail || "";
+        document.getElementById("bookImage").src = img.replace("http:", "https:");
+
+        let descOriginal = livro.description || "Sem descrição disponível.";
+        let cleanDesc = limparDescricao(descOriginal);
+
+        let descTraduzida = cleanDesc;
+        if (/[a-z]{4,}/i.test(cleanDesc) && !/[\u00C0-\u017F]/.test(cleanDesc)) {
+          descTraduzida = await traduzirTexto(cleanDesc);
+        }
+
+        document.getElementById("desc").innerText = descTraduzida;
+        document.getElementById("copyBtn").style.display = "inline-block";
+
+        const categorias = livro.categories || [];
+        document.getElementById("genres").innerHTML = "";
+        if (categorias.length === 0) {
+          const span = document.createElement("span");
+          span.className = "genre default";
+          span.innerText = "Sem categoria";
+          document.getElementById("genres").appendChild(span);
+        } else {
+          categorias.forEach(cat => {
+            const parts = cat.split(/[,/]/).map(p => p.trim());
+            parts.forEach(part => {
+              const span = document.createElement("span");
+              const clean = limpaTag(part);
+              const tagTraduzida = tradutorTags[clean] || part;
+              if (document.querySelector(`.${clean}`)) {
+                span.className = "genre " + clean;
+              } else {
+                span.className = "genre default";
+              }
+              span.innerText = tagTraduzida;
+              document.getElementById("genres").appendChild(span);
+            });
+          });
+        }
+
+        dingSound.play();
+      } catch (err) {
+        document.getElementById("desc").innerText = "Erro ao buscar o livro.";
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Sortear Livro";
+      }
+    }
+
+    function copiarDescricao() {
+      const texto = document.getElementById("desc").innerText;
+      navigator.clipboard.writeText(texto).then(() => {
+        alert("Descrição copiada!");
+      });
+    }
+
+    document.getElementById("btnSortear").addEventListener("click", sortearLivro);
+  </script>
+
+</body>
+</html>
+      
